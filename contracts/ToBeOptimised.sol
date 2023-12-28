@@ -3,9 +3,9 @@ pragma solidity 0.8.21;
 // import { Ownable } from "openzeppelin/access/Ownable.sol";
 // import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 struct Project {
     address token;
@@ -20,7 +20,8 @@ contract ContractToBeOptimised is Ownable {
     mapping(IERC20 token => bool supported) private _tokens;
     mapping(string id => Project project) private _projects;
 
-    mapping(address tokenReceiver => mapping(string projectId => uint64 claimedTokens)) private _claimedTokens;
+    mapping(address tokenReceiver => mapping(string projectId => uint64 claimedTokens))
+        private _claimedTokens;
 
     /// @notice Constructor sets the tokenHolder address and supported tokens.
     /// @param tokens supported tokens.
@@ -34,7 +35,11 @@ contract ContractToBeOptimised is Ownable {
     /// @param id The id of the merkle root.
     /// @param amount The total available of the token to be issued.
     /// @param proof The merkle proof.
-    function issueTokens(string calldata id, uint64 amount, bytes32[] calldata proof) public {
+    function issueTokens(
+        string calldata id,
+        uint64 amount,
+        bytes32[] calldata proof
+    ) public {
         require(amount > 0, "ERC20IssuerV2: amount must be greater than 0");
 
         address receiver = msg.sender;
@@ -43,19 +48,30 @@ contract ContractToBeOptimised is Ownable {
         uint64 claimed = _projects[id].claimed;
 
         require(token != address(0), "Project already exists!");
-        require(_claimedTokens[receiver][id] < amount, "Insufficient tokens available to claim!");
+        require(
+            _claimedTokens[receiver][id] < amount,
+            "Insufficient tokens available to claim!"
+        );
         require(
             allocated > claimed,
             "All allocated tokens have already been claimed! Please contact the project owner."
         );
 
-        require(verify(id, getLeaf(receiver, address(token), amount), proof), "Invalid merkle proof!");
+        require(
+            verify(id, getLeaf(receiver, address(token), amount), proof),
+            "Invalid merkle proof!"
+        );
 
         if (allocated > claimed && _claimedTokens[receiver][id] < amount) {
-            uint64 availableClaimedTokens = amount - _claimedTokens[receiver][id];
+            uint64 availableClaimedTokens = amount -
+                _claimedTokens[receiver][id];
 
             IERC20(token).approve(address(this), availableClaimedTokens);
-            IERC20(token).transferFrom(address(this), receiver, availableClaimedTokens);
+            IERC20(token).transferFrom(
+                address(this),
+                receiver,
+                availableClaimedTokens
+            );
 
             _claimedTokens[receiver][id] = amount;
             _projects[id].claimed += availableClaimedTokens;
@@ -72,14 +88,27 @@ contract ContractToBeOptimised is Ownable {
         uint64 allocated = _projects[id].allocated;
         uint64 claimed = _projects[id].claimed;
 
-        require(address(_projects[id].token) != address(0), "Project does not exist!");
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner!");
-        require(allocated > claimed, "All allocated tokens have already been claimed!");
+        require(
+            address(_projects[id].token) != address(0),
+            "Project does not exist!"
+        );
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner!"
+        );
+        require(
+            allocated > claimed,
+            "All allocated tokens have already been claimed!"
+        );
 
         uint64 reclaimAmount = allocated - claimed;
 
         IERC20(_projects[id].token).approve(address(this), reclaimAmount);
-        IERC20(_projects[id].token).transferFrom(address(this), _projects[id].projectOwner, reclaimAmount);
+        IERC20(_projects[id].token).transferFrom(
+            address(this),
+            _projects[id].projectOwner,
+            reclaimAmount
+        );
 
         _projects[id].claimed = allocated;
     }
@@ -101,8 +130,18 @@ contract ContractToBeOptimised is Ownable {
     ) public {
         address projectOwner = msg.sender;
         require(_tokens[IERC20(token)], "Invalid token");
-        require(_projects[id].projectOwner == address(0), "Project already exists");
-        _projects[id] = Project(token, root, projectName, projectOwner, allocated, 0);
+        require(
+            _projects[id].projectOwner == address(0),
+            "Project already exists"
+        );
+        _projects[id] = Project(
+            token,
+            root,
+            projectName,
+            projectOwner,
+            allocated,
+            0
+        );
 
         IERC20(token).transferFrom(projectOwner, address(this), allocated);
     }
@@ -110,7 +149,10 @@ contract ContractToBeOptimised is Ownable {
     /// @param id The id for this project.
     /// @param root The new root of the merkle tree.
     function updateMerkleRoot(string calldata id, bytes32 root) public {
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner"
+        );
         _projects[id].root = root;
     }
 
@@ -131,7 +173,10 @@ contract ContractToBeOptimised is Ownable {
     ) public {
         address projectOwner = msg.sender;
         require(_tokens[IERC20(token)], "Invalid token");
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner!");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner!"
+        );
 
         uint64 oldAllocated = _projects[id].allocated;
         address oldTokenAddress = _projects[id].token;
@@ -140,7 +185,14 @@ contract ContractToBeOptimised is Ownable {
 
         IERC20(oldTokenAddress).transfer(projectOwner, oldAllocated);
 
-        _projects[id] = Project(token, root, projectName, projectOwner, allocated, 0);
+        _projects[id] = Project(
+            token,
+            root,
+            projectName,
+            projectOwner,
+            allocated,
+            0
+        );
 
         IERC20(token).transferFrom(projectOwner, address(this), allocated);
     }
@@ -149,7 +201,10 @@ contract ContractToBeOptimised is Ownable {
     /// @param id The project id.
     /// @param amount The total deposit tokens for the project.
     function deposit(string calldata id, uint64 amount) public {
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner!");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner!"
+        );
 
         address token = _projects[id].token;
         _projects[id].allocated += amount;
@@ -172,12 +227,20 @@ contract ContractToBeOptimised is Ownable {
     /// @param receiver The receiver of the tokens.
     /// @param token The token to be issued.
     /// @param amount The amount of the token to be issued.
-    function getLeaf(address receiver, address token, uint64 amount) public pure returns (bytes32) {
+    function getLeaf(
+        address receiver,
+        address token,
+        uint64 amount
+    ) public pure returns (bytes32) {
         // write code to generate the merkle leaf
     }
 
     /// @notice Verifies a given leaf is in the merkle-tree with the given root.
-    function verify(string calldata id, bytes32 leaf, bytes32[] calldata proof) public view returns (bool) {
+    function verify(
+        string calldata id,
+        bytes32 leaf,
+        bytes32[] calldata proof
+    ) public view returns (bool) {
         // write code to verify the merkle proof
     }
 }

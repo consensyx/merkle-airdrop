@@ -1,10 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 struct Project {
     address token;
@@ -24,8 +24,17 @@ contract MerkleAirdrop is Ownable {
     mapping(address tokenReceiver => mapping(string projectId => mapping(uint256 index => bool claimed)))
         private _claimed;
 
-    event TokenIssued(address indexed account, string id, uint256 index, uint64 amount);
-    event TokenReclaimed(address indexed projectOwner, string id, uint64 amount);
+    event TokenIssued(
+        address indexed account,
+        string id,
+        uint256 index,
+        uint64 amount
+    );
+    event TokenReclaimed(
+        address indexed projectOwner,
+        string id,
+        uint64 amount
+    );
 
     /// @notice Constructor sets the tokenHolder address and supported tokens.
     /// @param tokens supported tokens.
@@ -42,14 +51,22 @@ contract MerkleAirdrop is Ownable {
     /// @param id The id of the merkle root.
     /// @param amount The total available of the token to be issued.
     /// @param proof The merkle proof.
-    function issueTokens(string calldata id, uint256 index, uint64 amount, bytes32[] calldata proof) public {
+    function issueTokens(
+        string calldata id,
+        uint256 index,
+        uint64 amount,
+        bytes32[] calldata proof
+    ) public {
         // early check
         require(amount > 0, "ERC20IssuerV2: amount must be greater than 0");
         address token = _projects[id].token;
         address receiver = msg.sender;
         require(token != address(0), "Project not exists!");
         require(!_claimed[receiver][id][index], "Already claimed!");
-        require(verify(id, getLeaf(index, receiver, address(token), amount), proof), "Invalid merkle proof!");
+        require(
+            verify(id, getLeaf(index, receiver, address(token), amount), proof),
+            "Invalid merkle proof!"
+        );
 
         if (_projects[id].allocated > _projects[id].claimed) {
             _claimed[receiver][id][index] = true;
@@ -71,13 +88,19 @@ contract MerkleAirdrop is Ownable {
         address projectOwner = _projects[id].projectOwner;
 
         require(token != address(0), "Project does not exists!");
-        require(address(_projects[id].token) != address(0), "Project does not exist!");
+        require(
+            address(_projects[id].token) != address(0),
+            "Project does not exist!"
+        );
         require(msg.sender == projectOwner, "Caller is not project owner!");
 
         uint64 allocated = _projects[id].allocated;
         uint64 claimed = _projects[id].claimed;
 
-        require(allocated > claimed, "All allocated tokens have already been claimed!");
+        require(
+            allocated > claimed,
+            "All allocated tokens have already been claimed!"
+        );
 
         uint64 reclaimAmount = allocated - claimed;
 
@@ -107,9 +130,19 @@ contract MerkleAirdrop is Ownable {
         require(_tokens[IERC20(token)], "Invalid token");
 
         address projectOwner = msg.sender;
-        require(_projects[id].projectOwner == address(0), "Project already exists");
+        require(
+            _projects[id].projectOwner == address(0),
+            "Project already exists"
+        );
 
-        _projects[id] = Project(token, projectOwner, root, allocated, 0, projectName);
+        _projects[id] = Project(
+            token,
+            projectOwner,
+            root,
+            allocated,
+            0,
+            projectName
+        );
 
         IERC20(token).safeTransferFrom(projectOwner, address(this), allocated);
     }
@@ -117,7 +150,10 @@ contract MerkleAirdrop is Ownable {
     /// @param id The id for this project.
     /// @param root The new root of the merkle tree.
     function updateMerkleRoot(string calldata id, bytes32 root) public {
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner"
+        );
         _projects[id].root = root;
     }
 
@@ -140,12 +176,22 @@ contract MerkleAirdrop is Ownable {
         require(_tokens[IERC20(token)], "Invalid token");
         require(_projects[id].claimed == 0, "Project has started claimed");
         address projectOwner = msg.sender;
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner!");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner!"
+        );
 
         uint64 oldAllocated = _projects[id].allocated;
         address oldTokenAddress = _projects[id].token;
 
-        _projects[id] = Project(token, projectOwner, root, allocated, 0, projectName);
+        _projects[id] = Project(
+            token,
+            projectOwner,
+            root,
+            allocated,
+            0,
+            projectName
+        );
 
         IERC20(oldTokenAddress).safeTransfer(projectOwner, oldAllocated);
         IERC20(token).safeTransferFrom(projectOwner, address(this), allocated);
@@ -155,10 +201,17 @@ contract MerkleAirdrop is Ownable {
     /// @param id The project id.
     /// @param amount The total deposit tokens for the project.
     function deposit(string calldata id, uint64 amount) public {
-        require(msg.sender == _projects[id].projectOwner, "Caller is not project owner!");
+        require(
+            msg.sender == _projects[id].projectOwner,
+            "Caller is not project owner!"
+        );
 
         _projects[id].allocated += amount;
-        IERC20(_projects[id].token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(_projects[id].token).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
     }
 
     /// @notice Sets a token.
@@ -177,7 +230,12 @@ contract MerkleAirdrop is Ownable {
     /// @param receiver The receiver of the tokens.
     /// @param token The token to be issued.
     /// @param amount The amount of the token to be issued.
-    function getLeaf(uint256 index, address receiver, address token, uint64 amount) public pure returns (bytes32) {
+    function getLeaf(
+        uint256 index,
+        address receiver,
+        address token,
+        uint64 amount
+    ) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(index, receiver, token, amount));
     }
 
@@ -188,7 +246,11 @@ contract MerkleAirdrop is Ownable {
      * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/MerkleProof.sol#L32
      * https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol
      */
-    function verify(string calldata id, bytes32 leaf, bytes32[] calldata proof) public view returns (bool) {
+    function verify(
+        string calldata id,
+        bytes32 leaf,
+        bytes32[] calldata proof
+    ) public view returns (bool) {
         return MerkleProof.verify(proof, _projects[id].root, leaf);
     }
 }
